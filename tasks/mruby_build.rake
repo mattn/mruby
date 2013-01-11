@@ -41,7 +41,7 @@ module MRuby
 
       @bins = %w(mruby mrbc mirb)
 
-      @gems, @libmruby, @libmruby_stub = [], [], ["#{build_dir}/libmruby_stub.o"]
+      @gems, @libmruby = [], []
 
       MRuby.targets[name.to_s] = self
       MRuby.build = self
