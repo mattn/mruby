@@ -26,7 +26,7 @@ module MRuby
     attr_accessor :gperf, :yacc
     attr_accessor :cat, :git
     attr_reader :root, :gems
-    attr_reader :libmruby
+    attr_reader :libmruby, :libmruby_stub
 
     def initialize(&block)
       @name ||= 'host'
@@ -41,7 +41,7 @@ module MRuby
 
       @bins = %w(mruby mrbc mirb)
 
-      @gems, @libmruby = [], []
+      @gems, @libmruby, @libmruby_stub = [], [], ["#{build_dir}/libmruby_stub.o"]
 
       MRuby.targets[name.to_s] = self
       MRuby.build = self
