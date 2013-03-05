@@ -148,7 +148,7 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
 }
 #define list6(a,b,c,d,e,f) list6_gen(p, (a),(b),(c),(d),(e),(f))
 
-static node*
+static inline node*
 append_gen(parser_state *p, node *a, node *b)
 {
   node *c = a;
@@ -4485,7 +4485,7 @@ parser_yylex(parser_state *p)
     }
     pushback(p, c);
     if (IS_SPCARG(c)) {
-      arg_ambiguous(p);
+      //arg_ambiguous(p);
 #if 0
       p->lex_strterm = new_strterm(p, str_regexp, '/', 0);
 #endif
