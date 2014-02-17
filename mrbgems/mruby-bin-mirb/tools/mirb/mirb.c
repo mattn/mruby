@@ -14,6 +14,10 @@
 #include "mruby/compile.h"
 #include "mruby/string.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #ifdef ENABLE_READLINE
 #include <limits.h>
 #include <readline/readline.h>
@@ -23,10 +27,67 @@ static const char *history_file_name = ".mirb_history";
 char history_path[PATH_MAX];
 #endif
 
+static char*
+str_to_utf8(const char* str, size_t len)
+{
+#ifdef _WIN32
+  wchar_t* wcsp;
+  char* mbsp;
+  size_t mbssize, wcssize;
+
+  if (len == 0)
+    return strdup("");
+  if (len == -1)
+	len = strlen(str);
+  wcssize = MultiByteToWideChar(GetACP(), 0, str, len,  NULL, 0);
+  wcsp = (wchar_t*) malloc((wcssize + 1) * sizeof(wchar_t));
+  wcssize = MultiByteToWideChar(GetACP(), 0, str, len, wcsp, wcssize + 1);
+  wcsp[wcssize] = 0;
+
+  mbssize = WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR) wcsp, -1, NULL, 0, NULL, NULL);
+  mbsp = (char*) malloc((mbssize + 1));
+  mbssize = WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR) wcsp, -1, mbsp, mbssize, NULL, NULL);
+  mbsp[mbssize] = 0;
+  free(wcsp);
+  return mbsp;
+#else
+  return strndup(str, len);
+#endif
+}
+
+static char*
+utf8_to_str(const char* utf8, size_t len)
+{
+#ifdef _WIN32
+  wchar_t* wcsp;
+  char* mbsp;
+  size_t mbssize, wcssize;
+
+  if (len == 0)
+    return strdup("");
+  if (len == -1)
+	len = strlen(utf8);
+  wcssize = MultiByteToWideChar(CP_UTF8, 0, utf8, len,  NULL, 0);
+  wcsp = (wchar_t*) malloc((wcssize + 1) * sizeof(wchar_t));
+  wcssize = MultiByteToWideChar(CP_UTF8, 0, utf8, len, wcsp, wcssize + 1);
+  wcsp[wcssize] = 0;
+
+  mbssize = WideCharToMultiByte(GetACP(), 0, (LPCWSTR) wcsp, -1, NULL, 0, NULL, NULL);
+  mbsp = (char*) malloc((mbssize + 1));
+  mbssize = WideCharToMultiByte(GetACP(), 0, (LPCWSTR) wcsp, -1, mbsp, mbssize, NULL, NULL);
+  mbsp[mbssize] = 0;
+  free(wcsp);
+  return mbsp;
+#else
+  return strndup(str, len);
+#endif
+}
 
 static void
 p(mrb_state *mrb, mrb_value obj, int prompt)
 {
+  struct RString *str;
+  char *s;
   obj = mrb_funcall(mrb, obj, "inspect", 0);
   if (prompt) {
     if (!mrb->exc) {
@@ -36,7 +97,9 @@ p(mrb_state *mrb, mrb_value obj, int prompt)
       obj = mrb_funcall(mrb, mrb_obj_value(mrb->exc), "inspect", 0);
     }
   }
-  fwrite(RSTRING_PTR(obj), RSTRING_LEN(obj), 1, stdout);
+  str = mrb_str_ptr(obj);
+  s = utf8_to_str((const char*) str->ptr, (size_t) str->len);
+  fwrite(s, strlen(s), 1, stdout);
   putc('\n', stdout);
 }
 
@@ -309,15 +372,20 @@ main(int argc, char **argv)
     }
 
     last_code_line[char_index] = '\0';
+	char *utf8 = str_to_utf8(last_code_line, char_index);
+    strncpy(last_code_line, utf8, sizeof(last_code_line)-1);
+    free(utf8);
 #else
     char* line = readline(code_block_open ? "* " : "> ");
     if (line == NULL) {
       printf("\n");
       break;
     }
-    strncpy(last_code_line, line, sizeof(last_code_line)-1);
-    add_history(line);
+	char *utf8 = str_to_utf8(line, strlen(line));
     free(line);
+    strncpy(last_code_line, utf8, sizeof(last_code_line)-1);
+    add_history(utf8);
+    free(utf8);
 #endif
 
     if ((strcmp(last_code_line, "quit") == 0) || (strcmp(last_code_line, "exit") == 0)) {

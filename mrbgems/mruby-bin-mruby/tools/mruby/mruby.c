@@ -7,12 +7,48 @@
 #include "mruby/dump.h"
 #include "mruby/variable.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+static char*
+str_to_utf8(const char* str, size_t len)
+{
+#ifdef _WIN32
+  wchar_t* wcsp;
+  char* mbsp;
+  size_t mbssize, wcssize;
+
+  if (len == 0)
+    return strdup("");
+  if (len == -1)
+	len = strlen(str);
+  wcssize = MultiByteToWideChar(GetACP(), 0, str, len,  NULL, 0);
+  wcsp = (wchar_t*) malloc((wcssize + 1) * sizeof(wchar_t));
+  wcssize = MultiByteToWideChar(GetACP(), 0, str, len, wcsp, wcssize + 1);
+  wcsp[wcssize] = 0;
+
+  mbssize = WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR) wcsp, -1, NULL, 0, NULL, NULL);
+  mbsp = (char*) malloc((mbssize + 1));
+  mbssize = WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR) wcsp, -1, mbsp, mbssize, NULL, NULL);
+  mbsp[mbssize] = 0;
+  free(wcsp);
+  return mbsp;
+#else
+  return strndup(str, len);
+#endif
+}
+
 #ifndef ENABLE_STDIO
 static void
 p(mrb_state *mrb, mrb_value obj)
 {
+  struct RString *str;
+  char *s;
   obj = mrb_funcall(mrb, obj, "inspect", 0);
-  fwrite(RSTRING_PTR(obj), RSTRING_LEN(obj), 1, stdout);
+  str = mrb_str_ptr(obj);
+  s = utf8_to_str((const char*) str->ptr, (size_t) str->len);
+  fwrite(s, strlen(s), 1, stdout);
   putc('\n', stdout);
 }
 #else
@@ -193,7 +229,9 @@ main(int argc, char **argv)
 
   ARGV = mrb_ary_new_capa(mrb, args.argc);
   for (i = 0; i < args.argc; i++) {
-    mrb_ary_push(mrb, ARGV, mrb_str_new(mrb, args.argv[i], strlen(args.argv[i])));
+    char* arg = str_to_utf8(args.argv[i], -1);
+    mrb_ary_push(mrb, ARGV, mrb_str_new(mrb, arg, strlen(arg)));
+	free(arg);
   }
   mrb_define_global_const(mrb, "ARGV", ARGV);
 
