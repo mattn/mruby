@@ -77,7 +77,9 @@
 //#define MRB_HEAP_PAGE_SIZE 1024
 
 /* if _etext and _edata available, mruby can reduce memory used by symbols */
-//#define MRB_USE_ETEXT_EDATA
+#if !defined(_WIN32)
+# define MRB_USE_ETEXT_EDATA
+#endif
 
 /* do not use __init_array_start to determine readonly data section;
    effective only when MRB_USE_ETEXT_EDATA is defined */
