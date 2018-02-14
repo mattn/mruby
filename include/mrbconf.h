@@ -81,7 +81,9 @@
 
 /* do not use __init_array_start to determine readonly data section;
    effective only when MRB_USE_ETEXT_EDATA is defined */
-//#define MRB_NO_INIT_ARRAY_START
+#if defined(_WIN32)
+# define MRB_NO_INIT_ARRAY_START
+#endif
 
 /* turn off generational GC by default */
 //#define MRB_GC_TURN_OFF_GENERATIONAL
